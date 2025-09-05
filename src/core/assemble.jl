@@ -134,7 +134,13 @@ function _eval_pipe_equations!(ss::SteadySimulator, x_dof::AbstractArray, residu
         to_node = pipe["to_node"]
         fr_dof = ref(ss, :node, fr_node, "dof")
         to_dof = ref(ss, :node, to_node, "dof")
-        sin_incline = 0.065
+
+        if pipe["length"] < 0.1
+            sin_incline = 0.0
+        else
+            sin_incline = pipe["sin_incline"]
+        end
+
         R1 = nominal_values(ss, :mach_num)^2 / (nominal_values(ss, :euler_num) * pipe["area"]^2)  
         # 8 degree inclination = sin(theta) approx 0.14
         # 2 degree = sin(theta) approx 0.034
@@ -259,7 +265,12 @@ function _eval_pipe_equations_mat!(ss::SteadySimulator, x_dof::AbstractArray,
         eqn_fr = ref(ss, :node, fr_node, "dof")
         eqn_to = ref(ss, :node, to_node, "dof")
 
-        sin_incline = 0.065
+        if pipe["length"] < 0.1
+            sin_incline = 0.0
+        else
+            sin_incline = pipe["sin_incline"]
+        end
+        
         R1 = nominal_values(ss, :mach_num)^2 / (nominal_values(ss, :euler_num) * pipe["area"]^2)  
 
         # 8 degree inclination = sin(theta) approx 0.14

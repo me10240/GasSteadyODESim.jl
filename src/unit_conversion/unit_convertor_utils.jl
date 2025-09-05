@@ -52,6 +52,7 @@ function _get_data_units(rescale_functions)::Dict{Symbol,Any}
         "max_pressure" => rescale_pressure, 
         "min_injection" => rescale_mass_flow, 
         "max_injection" => rescale_mass_flow, 
+        "elevation" => rescale_length,
     )
 
     pipe_units = Dict{String,Function}(
@@ -161,7 +162,11 @@ function _rescale_data!(data::Dict{String,Any},
         for (param, f) in node_units
             (!haskey(node, param)) && (continue)
             value = node[param]
-            node[param] = f(value)
+            if value == nothing 
+                @info "null value found in nodes"
+            else
+                node[param] = f(value)
+            end
         end 
     end 
 
@@ -200,7 +205,9 @@ function _rescale_data!(data::Dict{String,Any},
     )
     for (param, f) in initial_units
         for (i, value) in get(data, param, [])
-            data[param][i] = f(value)
+            if value != nothing
+                data[param][i] = f(value)
+            end
         end 
     end 
 

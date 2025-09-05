@@ -15,6 +15,8 @@ function _add_components_to_ref!(ref::Dict{Symbol,Any}, data::Dict{String,Any}, 
         ref[name][id]["pressure"] = NaN
         ref[name][id]["density"] = NaN 
         ref[name][id]["withdrawal"] = NaN
+        ref[name][id]["elevation"] = get(node, "elevation", 0.0)
+        
         (haskey(bc[:node], id)) && (num_control_vars += 1)
         if ref[:node][id]["is_slack"] == 1 
             ref[:control_vars][num_control_vars] = (:node, id, "pressure") #
@@ -43,6 +45,11 @@ function _add_components_to_ref!(ref::Dict{Symbol,Any}, data::Dict{String,Any}, 
         ref[name][id]["length"] = pipe["length"]
         ref[name][id]["friction_factor"] = pipe["friction_factor"]
         ref[name][id]["flow"] = NaN
+
+        # compute sin_incline and add field
+        fr_elevation = ref[:node][ref[:pipe][id]["fr_node"]]["elevation"] # nondim
+        to_elevation = ref[:node][ref[:pipe][id]["to_node"]]["elevation"] # nondim
+        ref[name][id]["sin_incline"] = (fr_elevation - to_elevation)/pipe["length"]
     end
 
     for (i, compressor) in get(data, "compressors", [])

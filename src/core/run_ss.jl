@@ -17,35 +17,42 @@ function run_simulator!(ss::SteadySimulator;
     method::Symbol=:trust_region,
     iteration_limit::Int64=2000, 
     show_trace_flag::Bool=false,
-    x_guess::Vector=Vector{Float64}(), 
+    x_guess::Vector=Vector{Float64}(),
+    collocation_flag::Bool= true,
+    random_seed_fixed::Bool=true, 
     kwargs...)::SolverReturn
     
     ss.params[:inertial_bool] = inertial_bool
     ss.params[:gravity_bool] = gravity_bool
     fcn_method = get(solver_method, method, TrustRegion())
 
-    (isempty(x_guess)) && (x_guess = _create_initial_guess_dof!(ss))
+    if isempty(x_guess)
+        @info "Fixed seed for random initial guess -- $random_seed_fixed"
+        x_guess = _create_initial_guess_dof!(ss, random_seed_fixed)
+    end
     x_guess_original = copy(x_guess)
 
-    df_tpc = prepare_for_solve!(ss, :two_point_collocation)
-    prob = NonlinearProblem(df_tpc, x_guess)
-    @info "Solving system after formulation of pipe equation as Two-Point Collocation..."
-    time = @elapsed soln = solve(prob, fcn_method; maxiters = iteration_limit, 
-    show_trace = Val(show_trace_flag),kwargs...)
-    res = maximum(abs.(soln.resid))
+    if collocation_flag == true
+        df_tpc = prepare_for_solve!(ss, :two_point_collocation)
+        prob = NonlinearProblem(df_tpc, x_guess)
+        @info "Solving system after formulation of pipe equation as Two-Point Collocation..."
+        time = @elapsed soln = solve(prob, fcn_method; maxiters = iteration_limit, 
+        show_trace = Val(show_trace_flag),kwargs...)
+        res = maximum(abs.(soln.resid))
+    
+        if ss.params[:eos] == :ideal
+            err_max, err_rms = get_applicable_residual(ss, soln.u)
+            @info "Two-Point Collocation residual for ideal EoS integral - \n max: $err_max, rms: $err_rms"
+        end
 
-    if ss.params[:eos] == :ideal
-        err_max, err_rms = get_applicable_residual(ss, soln.u)
-        @info "Two-Point Collocation residual for ideal EoS integral - \n max: $err_max, rms: $err_rms"
-    end
 
-
-    if  res < 1e-4 || SciMLBase.successful_retcode(soln) == false
-        @info "Using solution from Two-Point Collocation as initial guess..."
-        x_guess = soln.u
-     else
-        @info "NOT using solution from Two-Point Collocation. Using given initial guess..."
-        x_guess = x_guess_original
+        if  res < 1e-4 || SciMLBase.successful_retcode(soln) == false
+            @info "Using solution from Two-Point Collocation as initial guess..."
+            x_guess = soln.u
+        else
+            @info "NOT using solution from Two-Point Collocation. Using given initial guess..."
+            x_guess = x_guess_original
+        end
     end
 
     df_ode = prepare_for_solve!(ss, :ode)
@@ -97,11 +104,9 @@ function run_simulator!(ss::SteadySimulator;
         sol_return[:nodes_with_negative_pressures])
 end
 
-function _create_initial_guess_dof!(ss::SteadySimulator)::Array
+function _create_initial_guess_dof!(ss::SteadySimulator, random_seed_fixed::Bool)::Array
     ndofs = length(ref(ss, :dof))
-    Random.seed!(2025)
-    x_guess = rand(ndofs) 
-
+    x_guess = 0.5 * ones(Float64, ndofs) 
     dofs_updated = 0
 
     components = [:node, :pipe, :compressor, 
@@ -110,9 +115,22 @@ function _create_initial_guess_dof!(ss::SteadySimulator)::Array
 
     for component in components 
         for (i, val) in get(ss.initial_guess, component, [])
+            if val == nothing
+                continue
+            end
             x_guess[ref(ss, component, i, "dof")] = val 
             dofs_updated += 1
         end 
+    end
+
+    if 0 < dofs_updated < ndofs
+        @info "Null values found in ig file replaced by 0.5"
     end 
+
+    if dofs_updated == 0
+        (random_seed_fixed == true) && Random.seed!(2025)
+        x_guess = rand(ndofs)
+    end
+    
     return x_guess
 end
