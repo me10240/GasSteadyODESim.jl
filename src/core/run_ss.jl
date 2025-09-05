@@ -124,13 +124,13 @@ function _create_initial_guess_dof!(ss::SteadySimulator, random_seed_fixed::Bool
     end
 
     if 0 < dofs_updated < ndofs
-        @info "Null values found in ig file replaced by 0.5"
+        @warn "Null values found in ig file replaced by 0.5"
     end 
 
     if dofs_updated == 0
         (random_seed_fixed == true) && Random.seed!(2025)
         x_guess = rand(ndofs)
     end
-    
+
     return x_guess
 end

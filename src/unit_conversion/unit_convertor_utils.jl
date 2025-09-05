@@ -162,10 +162,8 @@ function _rescale_data!(data::Dict{String,Any},
         for (param, f) in node_units
             (!haskey(node, param)) && (continue)
             value = node[param]
-            if value == nothing 
-                @info "null value found in nodes"
-            else
-                node[param] = f(value)
+            if value != nothing
+                 node[param] = f(value)
             end
         end 
     end 
