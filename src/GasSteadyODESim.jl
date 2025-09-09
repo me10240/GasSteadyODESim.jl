@@ -2,6 +2,7 @@ module GasSteadyODESim
 
 import JSON
 import SciMLBase
+using Graphs
 using Random
 using NonlinearSolve
 using SparseArrays
