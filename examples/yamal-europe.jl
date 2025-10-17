@@ -2,31 +2,48 @@ using GasSteadyODESim
 using JSON
 
 file = "./data/yamal-europe/"
-eos_var = :ideal
+eos_var = :simple_cnga
 inertial_bool = true
 gravity_bool = true
-ss = initialize_simulator(file, eos=eos_var, initial_guess_filename="")
-solver_return = run_simulator!(ss, gravity_bool= gravity_bool, inertial_bool=inertial_bool, iteration_limit=100, show_trace_flag=true)
+guess_file = "r1.json"
+write_bool = false
+write_file = "r4.json"
 
-println(solver_return.status)
+file_name = "$eos_var" * "-inertia-" * "$inertial_bool" * ".csv"
+open(file_name, "a") do io
+        println(io, " # angle p2 rho2 rho1")
+end
+
+ss = initialize_simulator(file, eos=eos_var, initial_guess_filename=guess_file)
+for angle = -5 : 5
+        ss.ref[:pipe][1]["sin_incline"] = sind(angle)
+
+        solver_return = run_simulator!(ss, method=:trust_region, gravity_bool= gravity_bool, inertial_bool=inertial_bool, iteration_limit=100, collocation_flag=true, show_trace_flag=true, reltol = 1e-3)
 
 
+        println(solver_return.status)
+        # inclination = asind(ss.ref[:pipe][1]["sin_incline"])
+        p2 = ss.ref[:node][2]["pressure"] *  ss.nominal_values[:pressure]
+        rho2 = ss.ref[:node][2]["density"] * ss.nominal_values[:density]
+        rho1 = ss.ref[:node][1]["density"] * ss.nominal_values[:density]
+
+
+        using DelimitedFiles
+
+        file_name = "$eos_var" * "-inertia-" * "$inertial_bool" * ".csv"
+        # Append the data to "my_data.csv" with a comma delimiter
+        open(file_name, "a") do io
+                println(io, "$angle $p2 $rho2 $rho1")
+        end
+end
 #============== Save solution data for use =============================#
 if solver_return.status != nl_solve_failure
-        r1 = pipe_equations_no_gravity_no_inertia(ss, solver_return.solution)
-        @show r1
-        r2 = pipe_equations_no_gravity_with_inertia(ss, solver_return.solution)
-        @show r2
-        r3 = pipe_equations_with_gravity_no_inertia(ss, solver_return.solution)
-        @show r3
-        if gravity_bool == true
-                r4 = pipe_equations_with_gravity_with_inertia(ss, solver_return.solution)
-                @show r4
-        end
-
-        filename = "./data/yamal-europe/soln_"  * string(eos_var) * "_inertia_" * "$inertial_bool" * "_gravity_" * "$gravity_bool"  * ".json"
-        open(filename, "w") do f 
+        if write_bool
+            filename = "./data/yamal-europe/" * write_file
+            open(filename, "w") do f 
                 JSON.print(f, ss.sol, 2)
+            end
         end
+        
 end
 #======================================================================#

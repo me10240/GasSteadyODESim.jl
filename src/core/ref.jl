@@ -47,9 +47,13 @@ function _add_components_to_ref!(ref::Dict{Symbol,Any}, data::Dict{String,Any}, 
         ref[name][id]["flow"] = NaN
 
         # compute sin_incline and add field
-        fr_elevation = ref[:node][ref[:pipe][id]["fr_node"]]["elevation"] # nondim
-        to_elevation = ref[:node][ref[:pipe][id]["to_node"]]["elevation"] # nondim
-        ref[name][id]["sin_incline"] = (fr_elevation - to_elevation)/pipe["length"]
+        if haskey(pipe, "incline")
+            ref[name][id]["sin_incline"] = sind(pipe["incline"])
+        else 
+            fr_elevation = ref[:node][ref[:pipe][id]["fr_node"]]["elevation"] # nondim
+            to_elevation = ref[:node][ref[:pipe][id]["to_node"]]["elevation"] # nondim
+            ref[name][id]["sin_incline"] = (fr_elevation - to_elevation)/pipe["length"]
+        end
     end
 
     for (i, compressor) in get(data, "compressors", [])

@@ -29,6 +29,7 @@
             "pipe_name": "p1",
             "from_node": 1,
             "to_node": 2,
+            "incline": 0.0,
             "diameter": 1.422,
             "length": 122000,
             "friction_factor": 0.03,
